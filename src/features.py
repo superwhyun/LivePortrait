@@ -29,6 +29,8 @@ class FeatureExtractor:
     def extract_features(self, video_path: str) -> List[Dict]:
         driving_rgb_lst = load_driving_info(video_path)
         driving_rgb_lst_256 = [cv2.resize(_, (256, 256)) for _ in driving_rgb_lst]
+        driving_lmk_lst = self.cropper.get_retargeting_lmk_info(driving_rgb_lst)
+
         I_d_lst = self.live_portrait_wrapper.prepare_driving_videos(driving_rgb_lst_256)
 
         features = []
@@ -40,8 +42,6 @@ class FeatureExtractor:
                 'kp_info': x_d_i_info,
                 'rotation': R_d_i
             })
-
-        driving_lmk_lst = self.cropper.get_retargeting_lmk_info(driving_rgb_lst)
 
         return features, driving_lmk_lst
 
