@@ -42,6 +42,8 @@ class FeatureExtractor:
                 'kp_info': x_d_i_info,
                 'rotation': R_d_i
             })
+            with open(f'./output/feature_{i}', "wb") as f:
+                pickle.dump((x_d_i_info, R_d_i), f)
 
         return features, driving_lmk_lst
 

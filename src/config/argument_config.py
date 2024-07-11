@@ -42,3 +42,8 @@ class ArgumentConfig(PrintableConfig):
     server_port: Annotated[int, tyro.conf.arg(aliases=["-p"])]  = 8890
     share: bool = True
     server_name: str = "0.0.0.0"
+
+    # 클라이언트 특정 옵션 추가
+    host: Annotated[str, tyro.conf.arg(help="Server host")] = "127.0.0.1"
+    port: Annotated[int, tyro.conf.arg(help="Server port")] = 65432
+    num_loops: Annotated[int, tyro.conf.arg(aliases=["-l"], help="Number of times to loop the video")] = 1

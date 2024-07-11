@@ -3,78 +3,83 @@ import pickle
 import cv2
 import numpy as np
 import argparse
+from typing import List, Dict
+from enum import Enum
 from src.config.argument_config import ArgumentConfig
 from src.config.inference_config import InferenceConfig
 from src.config.crop_config import CropConfig
-from src.features import FeatureExtractor
-from src.utils.io import load_image_rgb, resize_to_limit
+from src.features import LivePortraitWrapper, Cropper
+from src.utils.io import load_driving_info
+from src.utils.camera import get_rotation_matrix
+import tyro
+
 
 def partial_fields(target_class, kwargs):
     return target_class(**{k: v for k, v in kwargs.items() if hasattr(target_class, k)})
 
-def run_client(host='127.0.0.1', port=65432, driving_video_path='driving_video.mp4'):
+class MessageType(Enum):
+    LANDMARK_LIST = 1
+    FEATURE = 2
+    END_OF_STREAM = 3
+
+class RealTimeFeatureExtractor:
+    def __init__(self, inference_cfg: InferenceConfig, crop_cfg: CropConfig):
+        self.live_portrait_wrapper = LivePortraitWrapper(cfg=inference_cfg)
+        self.cropper = Cropper(crop_cfg=crop_cfg)
+
+    def extract_features(self, video_path: str, socket_conn, num_loops: int = 1):
+        driving_rgb_lst = load_driving_info(video_path)
+        driving_rgb_lst_256 = [cv2.resize(_, (256, 256)) for _ in driving_rgb_lst]
+        driving_lmk_lst = self.cropper.get_retargeting_lmk_info(driving_rgb_lst)
+
+        # Send landmark list first
+        self.send_message(socket_conn, MessageType.LANDMARK_LIST, driving_lmk_lst)
+        print("Sent landmark list")
+
+        I_d_lst = self.live_portrait_wrapper.prepare_driving_videos(driving_rgb_lst_256)
+
+        for loop in range(num_loops):
+            print(f"Starting loop {loop + 1}/{num_loops}")
+            for i, I_d_i in enumerate(I_d_lst):
+                x_d_i_info = self.live_portrait_wrapper.get_kp_info(I_d_i)
+                R_d_i = get_rotation_matrix(x_d_i_info['pitch'], x_d_i_info['yaw'], x_d_i_info['roll'])
+
+                feature = {
+                    'kp_info': x_d_i_info,
+                    'rotation': R_d_i
+                }
+
+                # Send the feature
+                self.send_message(socket_conn, MessageType.FEATURE, feature)
+                print(f"Sent features for frame {i+1} in loop {loop + 1}")
+
+        # Send end-of-stream signal
+        self.send_message(socket_conn, MessageType.END_OF_STREAM, None)
+
+    def send_message(self, socket_conn, msg_type: MessageType, data):
+        msg = pickle.dumps((msg_type.value, data))
+        socket_conn.sendall(len(msg).to_bytes(4, byteorder='big'))
+        socket_conn.sendall(msg)
+
+def run_client(args: ArgumentConfig):
     # Load configs
-    args = ArgumentConfig()
     inference_cfg = partial_fields(InferenceConfig, args.__dict__)
     crop_cfg = partial_fields(CropConfig, args.__dict__)
 
-    # Initialize FeatureExtractor
-    extractor = FeatureExtractor(inference_cfg, crop_cfg)
-
-    # Open video file
-    cap = cv2.VideoCapture(driving_video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Unable to open video file: {driving_video_path}")
+    # Initialize RealTimeFeatureExtractor
+    extractor = RealTimeFeatureExtractor(inference_cfg, crop_cfg)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((host, port))
-        print(f"Connected to {host}:{port}")
+        s.connect((args.host, args.port))
+        print(f"Connected to {args.host}:{args.port}")
 
-        frame_count = 0
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+        # Extract and send features
+        extractor.extract_features(args.driving_info, s, args.num_loops)
 
-            # Convert frame to RGB and resize
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_rgb = resize_to_limit(frame_rgb, inference_cfg.ref_max_shape, inference_cfg.ref_shape_n)
-
-            # Extract features for the frame
-            driving_rgb_lst = [frame_rgb]
-            driving_rgb_lst_256 = [cv2.resize(frame_rgb, (256, 256))]
-            driving_lmk_lst = extractor.cropper.get_retargeting_lmk_info(driving_rgb_lst)
-            I_d_lst = extractor.live_portrait_wrapper.prepare_driving_videos(driving_rgb_lst_256)
-
-            features = []
-            for I_d_i in I_d_lst:
-                x_d_i_info = extractor.live_portrait_wrapper.get_kp_info(I_d_i)
-                R_d_i = extractor.live_portrait_wrapper.get_rotation_matrix(x_d_i_info['pitch'], x_d_i_info['yaw'], x_d_i_info['roll'])
-                features.append({
-                    'kp_info': x_d_i_info,
-                    'rotation': R_d_i
-                })
-
-            # Serialize and send the data
-            data = pickle.dumps((features, driving_lmk_lst))
-            s.sendall(len(data).to_bytes(4, byteorder='big'))  # Send data size first
-            s.sendall(data)
-
-            frame_count += 1
-            print(f"Sent features for frame {frame_count}")
-
-        # Send end-of-stream signal
-        s.sendall(b'\x00\x00\x00\x00')
-
-    cap.release()
     print("All frames processed and sent")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="LivePortrait Animation Client")
-    parser.add_argument("--host", default="127.0.0.1", help="Server host")
-    parser.add_argument("--port", type=int, default=65432, help="Server port")
-    parser.add_argument("-d", "--driving", required=True, help="Path to driving video")
-
-    args = parser.parse_args()
-
-    run_client(host=args.host, port=args.port, driving_video_path=args.driving)
+    tyro.extras.set_accent_color("bright_cyan")
+    args = tyro.cli(ArgumentConfig)
+    run_client(args)

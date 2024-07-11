@@ -1,3 +1,55 @@
+# LivePortrait: Efficient Portrait Animation with Stitching and Retargeting Control (Modified Version)
+
+This project is a fork of [LivePortrait](https://github.com/KwaiVGI/LivePortrait).
+
+## Added Features
+
+In this forked version, we have implemented the following major enhancements:
+
+1. **Server/Client Model Implementation**:
+   - We have separated the feature extraction and video generation components, making them transmittable over a network.
+   - This enables distributed processing and remote execution capabilities.
+
+2. **Feature Reusability**:
+   - We've implemented the ability to save extracted features as separate files.
+   - These saved feature files can be reused, significantly improving efficiency for repetitive processing tasks.
+
+## Differences from the Original Project
+
+- Network-based Processing: Unlike the original project, this version allows for feature extraction and video generation processes to be handled separately over a network.
+- Feature Storage and Reuse: This version introduces the ability to save and reuse intermediate results (features), which was not possible in the original implementation.
+
+## Usage
+
+(Add detailed instructions here on how to use the new features. For example: how to run the server, how to use the client, how to save and load feature files, etc.)
+
+### Server/Client
+1. **Server**
+```bash
+python server.py -s assets\examples\source\s2.jpg
+```
+
+2. **Client**
+```bash
+python client.py -d assets\examples\driving\d0.mp4 -l 2
+```
+
+### Feature Save
+
+1. Feature extraction
+```bash
+python separated.py -s assets\examples\source\s0.jpg -d assets\examples\driving\d0.mp4
+```
+2. Video generation using saved feature
+```bash
+python separated.py -s assets\examples\source\s0.jpg -d output\extracted_features.pkl
+```
+
+---
+
+The original README content follows:
+
+
 <h1 align="center">LivePortrait: Efficient Portrait Animation with Stitching and Retargeting Control</h1>
 
 <div align='center'>
