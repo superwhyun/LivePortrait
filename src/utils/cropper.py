@@ -73,8 +73,9 @@ class Cropper(object):
 
         if len(src_face) == 0:
             log('No face detected in the source image.')
-            raise gr.Error("No face detected in the source image 💥!", duration=5)
-            raise Exception("No face detected in the source image!")
+            return None
+            # raise gr.Error("No face detected in the source image 💥!", duration=5)
+            # raise Exception("No face detected in the source image!")
         elif len(src_face) > 1:
             log(f'More than one face detected in the image, only pick one face by rule {direction}.')
 
@@ -104,7 +105,8 @@ class Cropper(object):
         driving_lmk_lst = []
         for driving_image in driving_rgb_lst:
             ret_dct = self.crop_single_image(driving_image)
-            driving_lmk_lst.append(ret_dct['lmk_crop'])
+            if(ret_dct is not None):
+                driving_lmk_lst.append(ret_dct['lmk_crop'])
         return driving_lmk_lst
 
     def make_video_clip(self, driving_rgb_lst, output_path, output_fps=30, **kwargs):
