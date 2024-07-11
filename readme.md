@@ -31,9 +31,14 @@ In this forked version, we have implemented the following major enhancements:
 python server.py -s assets\examples\source\s2.jpg
 ```
 
-2. **Client**
+2. **Client from video file**
 ```bash
 python client.py -d assets\examples\driving\d0.mp4 -l 2
+```
+
+3. **Client from Cam**
+```bash
+python client_cam.py
 ```
 
 ### Feature Save
