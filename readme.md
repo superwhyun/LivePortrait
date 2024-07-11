@@ -1,6 +1,7 @@
 # LivePortrait: Efficient Portrait Animation with Stitching and Retargeting Control (Modified Version)
 
 This project is a fork of [LivePortrait](https://github.com/KwaiVGI/LivePortrait).
+
 NOTE - It's too late to merge with the original repo since there are so many changes to keep track of them.
 
 ## Added Features
