@@ -8,6 +8,8 @@ import os.path as osp
 import numpy as np
 import cv2
 import torch
+torch.backends.cudnn.benchmark = True # disable CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR warning
+
 import yaml
 
 from .utils.timer import Timer
